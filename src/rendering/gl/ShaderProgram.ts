@@ -29,6 +29,11 @@ class ShaderProgram {
   unifModelInvTr: WebGLUniformLocation;
   unifViewProj: WebGLUniformLocation;
   unifColor: WebGLUniformLocation;
+  unifTime: WebGLUniformLocation;
+  unifLargeAmplitude: WebGLUniformLocation;
+  unifDetailAmplitude: WebGLUniformLocation;
+  unifNoiseScale: WebGLUniformLocation;
+  unifResolution: WebGLUniformLocation;
 
   constructor(shaders: Array<Shader>) {
     this.prog = gl.createProgram();
@@ -48,6 +53,11 @@ class ShaderProgram {
     this.unifModelInvTr = gl.getUniformLocation(this.prog, "u_ModelInvTr");
     this.unifViewProj   = gl.getUniformLocation(this.prog, "u_ViewProj");
     this.unifColor      = gl.getUniformLocation(this.prog, "u_Color");
+    this.unifTime       = gl.getUniformLocation(this.prog, "u_Time");
+    this.unifLargeAmplitude = gl.getUniformLocation(this.prog, "u_LargeAmplitude");
+    this.unifDetailAmplitude = gl.getUniformLocation(this.prog, "u_DetailAmplitude");
+    this.unifNoiseScale = gl.getUniformLocation(this.prog, "u_NoiseScale");
+    this.unifResolution = gl.getUniformLocation(this.prog, "u_Resolution");
   }
 
   use() {
@@ -82,6 +92,42 @@ class ShaderProgram {
     this.use();
     if (this.unifColor !== -1) {
       gl.uniform4fv(this.unifColor, color);
+    }
+  }
+
+  setTime(time: number) {
+    this.use();
+
+    if (this.unifTime !== null) {
+      gl.uniform1f(this.unifTime, time);
+    }
+  }
+
+  setFireballParameters(
+    largeAmplitude: number,
+    detailAmplitude: number,
+    noiseScale: number
+  ) {
+    this.use();
+
+    if (this.unifLargeAmplitude !== null) {
+      gl.uniform1f(this.unifLargeAmplitude, largeAmplitude);
+    }
+
+    if (this.unifDetailAmplitude !== null) {
+      gl.uniform1f(this.unifDetailAmplitude, detailAmplitude);
+    }
+
+    if (this.unifNoiseScale !== null) {
+      gl.uniform1f(this.unifNoiseScale, noiseScale);
+    }
+  }
+
+  setResolution(width: number, height: number) {
+    this.use();
+
+    if (this.unifResolution !== null) {
+      gl.uniform2f(this.unifResolution, width, height);
     }
   }
 

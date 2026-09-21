@@ -11,33 +11,58 @@
 // position, light position, and vertex color.
 precision highp float;
 
+uniform float u_Time;
 uniform vec4 u_Color; // The color with which to render this instance of geometry.
 
 // These are the interpolated values out of the rasterizer, so you can't know
 // their specific values without knowing the vertices that contributed to them
-in vec4 fs_Nor;
-in vec4 fs_LightVec;
-in vec4 fs_Col;
+
+in float fs_Displacement;
+in float fs_Detail;
 
 out vec4 out_Col; // This is the final output color that you will see on your
                   // screen for the pixel that is currently being processed.
 
+float pulse(float c, float w, float x) {
+    float distanceToCenter = abs(x - c);
+    float t = clamp(distanceToCenter / w, 0.0, 1.0);
+    return 1.0 - t * t * (3.0 - 2.0 * t);
+}
+
 void main()
 {
-    // Material base color (before shading)
-        vec4 diffuseColor = u_Color;
+    float heat = 0.5 + 1.0 * fs_Displacement + 0.65 * fs_Detail;
 
-        // Calculate the diffuse term for Lambert shading
-        float diffuseTerm = dot(normalize(fs_Nor), normalize(fs_LightVec));
-        // Avoid negative lighting values
-        // diffuseTerm = clamp(diffuseTerm, 0, 1);
+    // fragment shader
+    // pulse
+    heat += 0.04 * sin(u_Time * 1.5 + fs_Detail * 6.0);
+    heat = clamp(heat, 0.0, 1.0);
 
-        float ambientTerm = 0.2;
+    vec3 darkRed    = vec3(0.18, 0.005, 0.002);
+    vec3 orange    = vec3(1.00, 0.16, 0.015);
+    vec3 yellow    = vec3(1.00, 0.65, 0.06);
+    vec3 paleYellow = vec3(1.00, 0.95, 0.65);
 
-        float lightIntensity = diffuseTerm + ambientTerm;   //Add a small float value to the color multiplier
-                                                            //to simulate ambient lighting. This ensures that faces that are not
-                                                            //lit by our point light are not completely black.
+    // smoothstep
+    vec3 color = mix(
+        darkRed, orange,
+        smoothstep(0.15, 0.50, heat)
+    );
 
-        // Compute final shaded color
-        out_Col = vec4(diffuseColor.rgb * lightIntensity, diffuseColor.a);
+    color = mix(
+        color, yellow,
+        smoothstep(0.45, 0.75, heat)
+    );
+
+    color = mix(
+        color, paleYellow,
+        smoothstep(0.72, 0.95, heat)
+    );
+
+    // move light band
+    float bandCenter = 0.65 + 0.08 * sin(u_Time * 0.8);
+    float band = pulse(bandCenter, 0.12, heat);
+    color += band * vec3(0.08, 0.04, 0.01);
+
+    out_Col = vec4(clamp(color, 0.0, 1.0), 1.0);
 }

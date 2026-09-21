@@ -11,11 +11,30 @@ import ShaderProgram, {Shader} from './rendering/gl/ShaderProgram';
 import lambertVertSource from './shaders/lambert-vert.glsl?raw';
 import lambertFragSource from './shaders/lambert-frag.glsl?raw';
 
+import backgroundVertSource from './shaders/background-vert.glsl?raw';
+import backgroundFragSource from './shaders/background-frag.glsl?raw';
+
 // Define an object with application parameters and button callbacks
 // This will be referred to by dat.GUI's functions that add GUI elements.
-const controls = {
+// const controls = {
+//   tesselations: 5,
+//   'Load Scene': loadScene, // A function pointer, essentially
+// };
+
+const defaults = {
   tesselations: 5,
-  'Load Scene': loadScene, // A function pointer, essentially
+  largeAmplitude: 0.18,
+  detailAmplitude: 0.21,
+  noiseScale: 7.3,
+  animationSpeed: 1.0,
+};
+
+const controls = {
+  ...defaults,
+  'Load Scene': loadScene,
+  'Reset Defaults': () => {
+    Object.assign(controls, defaults);
+  },
 };
 
 let icosphere: Icosphere;
@@ -40,8 +59,34 @@ function main() {
 
   // Add controls to the gui
   const gui = new DAT.GUI();
-  gui.add(controls, 'tesselations', 0, 8).step(1);
+
+  gui.add(controls, 'tesselations', 0, 8)
+    .step(1)
+    .listen();
+
   gui.add(controls, 'Load Scene');
+
+  gui.add(controls, 'largeAmplitude', 0.0, 0.6)
+    .step(0.01)
+    .name('Large amplitude')
+    .listen();
+
+  gui.add(controls, 'detailAmplitude', 0.0, 0.25)
+    .step(0.01)
+    .name('Detail amplitude')
+    .listen();
+
+  gui.add(controls, 'noiseScale', 2.0, 10.0)
+    .step(0.1)
+    .name('Noise scale')
+    .listen();
+
+  gui.add(controls, 'animationSpeed', 0.0, 3.0)
+    .step(0.1)
+    .name('Animation speed')
+    .listen();
+
+  gui.add(controls, 'Reset Defaults');
 
   // get canvas and webgl context
   const canvas = <HTMLCanvasElement> document.getElementById('canvas');
@@ -67,18 +112,56 @@ function main() {
     new Shader(gl.FRAGMENT_SHADER, lambertFragSource),
   ]);
 
+  const background = new ShaderProgram([
+    new Shader(gl.VERTEX_SHADER, backgroundVertSource),
+    new Shader(gl.FRAGMENT_SHADER, backgroundFragSource),
+  ]);
+
+  let previousTime = performance.now();
+  let animationTime = 0;
+
   // This function will be called every frame
   function tick() {
+    const now = performance.now();
+    const deltaSeconds = Math.min((now - previousTime) / 1000, 0.1);
+    previousTime = now;
+
+    animationTime += deltaSeconds * controls.animationSpeed;
+
     camera.update();
     stats.begin();
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
     renderer.clear();
+
+    // draw bg first
+    gl.disable(gl.DEPTH_TEST);
+    gl.depthMask(false);
+
+    background.setResolution(canvas.width, canvas.height);
+
+    background.setTime(animationTime);
+
+    renderer.render(camera, background, [square]);
+
+    // draw ball after
+    gl.depthMask(true);
+    gl.enable(gl.DEPTH_TEST);
+
     if(controls.tesselations != prevTesselations)
     {
       prevTesselations = controls.tesselations;
       icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, prevTesselations);
       icosphere.create();
     }
+
+    lambert.setTime(animationTime);
+
+    lambert.setFireballParameters(
+      controls.largeAmplitude,
+      controls.detailAmplitude,
+      controls.noiseScale
+    );
+
     renderer.render(camera, lambert, [
       icosphere,
       // square,
